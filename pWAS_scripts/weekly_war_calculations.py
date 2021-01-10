@@ -69,6 +69,14 @@ def main(argv):
 
 def driver(start_gameweek, weekly_xfpts_csv, season_long_war_csv, output_file):
 
+    #count the number starter and ww guys for each week and stor here
+    starter_counts_F = []
+    ww_counts_F = []
+    starter_counts_M = []
+    ww_counts_M = []
+    starter_counts_D = []
+    ww_counts_D = []
+
     #prep the two types of output files
     output_file_weekly = output_file + "_weekly.csv"
     output_file_season = output_file + "_season.csv"
@@ -100,7 +108,7 @@ def driver(start_gameweek, weekly_xfpts_csv, season_long_war_csv, output_file):
     #fwd_group_dict = {1: 97, 
     #                  2: 90, 
     #                  3: 80} 
-    fwd_group_dict = {1: 97,
+    fwd_group_dict = {1: 90,
                       2: 80,
                       3: 70}
 
@@ -119,7 +127,8 @@ def driver(start_gameweek, weekly_xfpts_csv, season_long_war_csv, output_file):
 
     #only starters
     #only include people who played in the anaylsis
-    weekly_xfpts_df = weekly_xfpts_df.loc[(weekly_xfpts_df['GP'] == 1) & (weekly_xfpts_df['Min.x'] >= 60)]
+    #19_20 data uses "Min.x" instead of "Min_x" 
+    weekly_xfpts_df = weekly_xfpts_df.loc[(weekly_xfpts_df['GP'] == 1) & (weekly_xfpts_df['Min_x'] >= 60)]
 
     # starting with the user supplied game week calculate the week WAR for each week up to the last one
     gameweek = start_gameweek
@@ -140,15 +149,15 @@ def driver(start_gameweek, weekly_xfpts_csv, season_long_war_csv, output_file):
 
             ## FWDS
             fwd_total_starters = fwd_group_dict[group]
-            fwd_starter_game_scores, fwd_ww_game_scores = get_starters_and_ww("F", gameweek_xfpts_df, fwd_total_starters)
+            fwd_starter_game_scores, fwd_ww_game_scores = get_starters_and_ww("F", gameweek_xfpts_df, fwd_total_starters, starter_counts_F, ww_counts_F)
         
             ## MIDS
             mid_total_starters = mid_group_dict[group]
-            mid_starter_game_scores, mid_ww_game_scores = get_starters_and_ww("M",  gameweek_xfpts_df, mid_total_starters)
+            mid_starter_game_scores, mid_ww_game_scores = get_starters_and_ww("M",  gameweek_xfpts_df, mid_total_starters, starter_counts_M, ww_counts_M)
         
             ## DEF
             def_total_starters = def_group_dict[group]
-            def_starter_game_scores, def_ww_game_scores = get_starters_and_ww("D", gameweek_xfpts_df, def_total_starters)
+            def_starter_game_scores, def_ww_game_scores = get_starters_and_ww("D", gameweek_xfpts_df, def_total_starters,starter_counts_D, ww_counts_D)
         
             starter_score_dict = {"D": def_starter_game_scores,
                                   "M": mid_starter_game_scores,
@@ -402,6 +411,11 @@ def driver(start_gameweek, weekly_xfpts_csv, season_long_war_csv, output_file):
     #write season data to file
     season_df.to_csv(output_file_season)
 
+    #write starter and waiver wire counts to file
+    count_dict = {"starter_counts_F": starter_counts_F, "ww_counts_F": ww_counts_F, "starter_counts_M": starter_counts_M, "ww_counts_M": ww_counts_M, "starter_counts_D": starter_counts_D, "ww_counts_D": ww_counts_D }
+    count_df = pd.DataFrame(count_dict)
+    count_df.to_csv("starter_ww_counts.csv")
+
 #NOTE can edit this to allow for player week result to be added instead of a ww_added_df
 def get_game_results(starter_score_dict, pos_counts, num_sample, ww_added_df = None):
 
@@ -445,7 +459,7 @@ def get_game_results(starter_score_dict, pos_counts, num_sample, ww_added_df = N
 
 
 
-def get_starters_and_ww(pos, gameweek_xfpts_df, total_starters):
+def get_starters_and_ww(pos, gameweek_xfpts_df, total_starters, starter_counts, ww_counts):
 
     #remove the "%" from the % Owned column so we can sort on it
     #pdb.set_trace()
@@ -470,12 +484,16 @@ def get_starters_and_ww(pos, gameweek_xfpts_df, total_starters):
     starters = list(gameweek_xfpts_df.loc[(gameweek_xfpts_df['Position'] == pos) & (gameweek_xfpts_df["% Owned"] >= total_starters)].sort_values(by = ['Pct_Owned','Rk'], ascending = [False,True])['Player'])
     #starters = list(gameweek_xfpts_df.loc[(gameweek_xfpts_df['Position'] == pos)].sort_values(by = ['Pct_Owned','Rk'], ascending = [False,True])[0:total_starters]['Player'])
     #starters = list(xfpts_df.loc[(xfpts_df['Position'] == pos)].sort_values(by = 'mean_xFpts', ascending = False)[0:total_starters]['Player'])
+    num_starters = len(starters)
+    starter_counts.append(num_starters)
     print(pos + " starters: \n", starters)
     starter_game_scores = gameweek_xfpts_df.loc[(gameweek_xfpts_df['Player'].isin(starters))]['FPts']
 
     ww_players = list(gameweek_xfpts_df.loc[(gameweek_xfpts_df['Position'] == pos) & (gameweek_xfpts_df["% Owned"] < total_starters)].sort_values(by = ['Pct_Owned','Rk'], ascending = [False,True])['Player'])
     #ww_players = list(gameweek_xfpts_df.loc[(gameweek_xfpts_df['Position'] == pos)].sort_values(by = ['Pct_Owned','Rk'], ascending = [False,True])[total_starters:pos_end]['Player'])
     #ww_players = list(xfpts_df.loc[(xfpts_df['Position'] == pos)].sort_values(by = 'mean_xFpts', ascending = False)[ww_start:ww_end]['Player'])
+    num_ww = len(ww_players)
+    ww_counts.append(num_ww)
     print(pos + " ww: \n", ww_players)
     ww_game_scores = gameweek_xfpts_df.loc[(gameweek_xfpts_df['Player'].isin(ww_players))]['FPts']
 

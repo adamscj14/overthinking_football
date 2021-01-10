@@ -1,0 +1,88 @@
+---
+title: "Weekly_WAR_plots"
+author: "William Bone"
+date: "12/31/2020"
+output: html_document
+---
+
+
+#### Load libraries
+```{r }
+library(tidyverse)
+library(ggplot2)
+library(ggrepel)
+library(gridExtra)
+library(RColorBrewer)
+
+#devtools::install_github('thomasp85/gganimate')
+library(gganimate)
+library(gifski)
+```
+
+#### Load in the data
+```{r }
+season_war <- read_csv("/Users/wbone/Desktop/overthinking_football/overthinking_football/fbref_scripts/Weekly_WAR_2021_upto_w14_rerun_season.csv",col_names = TRUE)
+
+weekly_war <- read_csv("/Users/wbone/Desktop/overthinking_football/overthinking_football/fbref_scripts/Weekly_WAR_2021_upto_w14_rodrigate_weekly.csv",col_names = TRUE)
+
+
+```
+
+#### Loop through each player and generate the "running WAR" for each player
+```{r }
+
+last_week = 14
+
+running_war_df = data.frame(Player=character(),game_week=character(),running_war=character())#data.frame(matrix(ncol=3,nrow= last_week *dim(PAD_CAD_reg_LDSC_results)[1]))
+#colnames(running_war_df) <- c("Player", "game_week", "Running_WAR")
+
+#running_war_df$Player <- as.character(running_war_df$Player)
+
+for(p in 1:dim(season_war)[1]){
+  
+  player <- season_war[p,]
+  player_name <- player$Player
+  print(player_name)
+  war = 0
+  
+  for (w in 1:last_week){
+    print(w)
+    player_week <- weekly_war[(weekly_war$Player == player_name) & (weekly_war$gameweek == w),]
+    if(dim(player_week)[1] == 0){
+      
+      week_war = 0
+      
+    } else {
+      
+      week_war = player_week$WAR
+    }
+    war = war + week_war
+    
+    colnames(running_war_df) <- c("Player", "game_week", "Running_WAR")
+    
+    running_war <- data.frame(Player=player_name, game_week=w, Running_WAR=war)
+    
+    running_war_df <- rbind(running_war_df,running_war)
+   
+  }
+}
+
+#colnames(running_war_df) <- c("Player", "game_week", "Running_WAR")
+```
+
+```{r}
+ggplot(data=bruno, aes(x=game_week, y=Running_WAR)) +
+   geom_line()+
+   geom_point()+
+   geom_label(data = subset(bruno, game_week ==max(game_week)),aes(label = Player), nudge_x = 0.35, size = 3) 
+
+p + transition_reveal(game_week)
+q = p + transition_reveal(game_week)
+anim_save(filename = "bruno_test.gif",animation = q)
+#p <- ggplot(data=bruno, aes(x=game_week, y=Running_WAR)) +
+   #geom_line()+
+   #geom_point()+
+   #geom_label(data = subset(bruno, game_week ==max(game_week)),aes(label = Player), nudge_x = 0.35, size = 4)+
+#labs(title = 'Game Week: {frame_time}', x = 'Game Week', y = 'WAR') +
+  #transition_time(game_week) +
+  #ease_aes('linear')
